@@ -2,7 +2,11 @@ import pytest
 import pandas as pd
 
 from src.optimization.linear_programming import solve_resource_allocation
-from src.optimization.resource_allocation import optimize_allocation_from_forecast
+from src.optimization.resource_allocation import (
+    HorizonAllocationPlan,
+    optimize_allocation_from_forecast,
+    optimize_horizon_from_forecast,
+)
 
 
 def test_solve_resource_allocation_basic_feasible():
@@ -44,4 +48,23 @@ def test_optimize_allocation_from_forecast_mean_aggregation():
     # Mean forecast is 14.0 units; total allocation should be close to that.
     total_alloc = result.allocation.sum()
     assert total_alloc == pytest.approx(14.0, rel=1e-6)
+
+
+def test_optimize_horizon_from_forecast_per_period():
+    forecast = pd.Series([5.0, 7.0, 9.0])
+    capacities = [10.0, 10.0]
+
+    plan = optimize_horizon_from_forecast(
+        forecast=forecast,
+        costs=1.5,
+        capacities=capacities,
+    )
+
+    assert isinstance(plan, HorizonAllocationPlan)
+    assert plan.allocations.shape == (len(forecast), len(capacities))
+
+    # For each period, total allocated quantity should match demand.
+    per_period_alloc = plan.allocations.sum(axis=1)
+    assert per_period_alloc.tolist() == pytest.approx(forecast.tolist(), rel=1e-6)
+
 

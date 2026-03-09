@@ -18,6 +18,10 @@ statsmodels>=0.14
 matplotlib>=3.8
 seaborn>=0.13
 
+# API / web
+fastapi>=0.115
+uvicorn[standard]>=0.32
+
 # Dev & notebooks
 pytest>=7.4
 black>=23.7

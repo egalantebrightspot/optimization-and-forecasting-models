@@ -4,7 +4,7 @@ Plotting utilities for optimization and forecasting results.
 
 from __future__ import annotations
 
-from typing import Sequence, Optional
+from typing import Sequence, Optional, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -82,4 +82,75 @@ def plot_allocation_bars(
     ax.set_title(title)
     ax.legend()
     return ax
+
+
+def plot_allocation_heatmap(
+    allocations: np.ndarray,
+    *,
+    index: Optional[pd.Index] = None,
+    resource_labels: Optional[Sequence[str]] = None,
+    ax: Optional[plt.Axes] = None,
+    title: str = "Allocation heatmap (period x resource)",
+    xlabel: str = "Period",
+    ylabel: str = "Resource",
+) -> plt.Axes:
+    """Heatmap of allocation levels for each resource over time.
+
+    ``allocations`` is expected to have shape ``(n_periods, n_resources)``.
+    """
+    if allocations.ndim != 2:
+        raise ValueError("allocations must be a 2D array of shape (n_periods, n_resources).")
+
+    n_periods, n_resources = allocations.shape
+    if resource_labels is None:
+        resource_labels = [f"R{i+1}" for i in range(n_resources)]
+
+    if ax is None:
+        _, ax = plt.subplots(figsize=(10, 4))
+
+    im = ax.imshow(
+        allocations.T,
+        aspect="auto",
+        origin="lower",
+        interpolation="nearest",
+    )
+    ax.set_yticks(np.arange(n_resources))
+    ax.set_yticklabels(list(resource_labels))
+
+    if index is not None:
+        ax.set_xticks(np.arange(n_periods))
+        ax.set_xticklabels([str(i) for i in index], rotation=45, ha="right")
+
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
+    ax.set_title(title)
+    plt.colorbar(im, ax=ax, label="Allocation")
+    return ax
+
+
+def plot_objective_over_time(
+    objective: Union[pd.Series, np.ndarray],
+    *,
+    index: Optional[pd.Index] = None,
+    ax: Optional[plt.Axes] = None,
+    title: str = "Objective value over time",
+    ylabel: str = "Cost",
+) -> plt.Axes:
+    """Line plot of objective value (e.g., cost) over time."""
+    if isinstance(objective, pd.Series):
+        series = objective
+    else:
+        values = np.asarray(objective, dtype=float)
+        if index is None:
+            index = pd.RangeIndex(start=0, stop=len(values))
+        series = pd.Series(values, index=index, name="objective")
+
+    if ax is None:
+        _, ax = plt.subplots(figsize=(10, 4))
+
+    series.plot(ax=ax)
+    ax.set_title(title)
+    ax.set_ylabel(ylabel)
+    return ax
+
 

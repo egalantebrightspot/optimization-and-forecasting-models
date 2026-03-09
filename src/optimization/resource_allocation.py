@@ -4,8 +4,8 @@ Domain-specific resource allocation models built on top of core optimization pri
 
 from __future__ import annotations
 
-from typing import Sequence, Literal
-
+from dataclasses import dataclass
+from typing import Sequence, Literal, Union, List
 import numpy as np
 import pandas as pd
 
@@ -63,4 +63,65 @@ def optimize_allocation_from_forecast(
         capacities=list(capacities),
         demands=demands,
     )
+
+
+@dataclass
+class HorizonAllocationPlan:
+    """Allocation plan over a forecast horizon."""
+
+    forecast: pd.Series
+    allocations: np.ndarray  # shape: (n_periods, n_resources)
+    objective_values: np.ndarray  # shape: (n_periods,)
+    statuses: List[str]
+
+
+def optimize_horizon_from_forecast(
+    forecast: pd.Series,
+    costs: Union[float, Sequence[float]],
+    capacities: Sequence[float],
+) -> HorizonAllocationPlan:
+    """Optimize resource allocation for each period in a forecast horizon.
+
+    This treats the forecast as demand for a **single product** over time and
+    solves one LP per period using ``solve_resource_allocation``.
+    """
+    if not isinstance(forecast, pd.Series):
+        raise TypeError("forecast must be a pandas.Series.")
+    if forecast.empty:
+        raise ValueError("forecast must be non-empty.")
+
+    if isinstance(costs, (int, float)):
+        cost_list = [float(costs)]
+    else:
+        cost_list = list(costs)
+
+    if len(cost_list) != 1:
+        raise ValueError("optimize_horizon_from_forecast currently supports a single product (len(costs) must be 1).")
+
+    capacities_list = list(capacities)
+    n_resources = len(capacities_list)
+    n_periods = len(forecast)
+
+    allocations = np.zeros((n_periods, n_resources), dtype=float)
+    objective_values = np.zeros(n_periods, dtype=float)
+    statuses: List[str] = []
+
+    for t, demand_t in enumerate(forecast.to_numpy(dtype=float)):
+        period_demand = max(float(demand_t), 0.0)
+        res = solve_resource_allocation(
+            costs=cost_list,
+            capacities=capacities_list,
+            demands=[period_demand],
+        )
+        allocations[t, :] = res.allocation[:, 0]
+        objective_values[t] = res.objective_value
+        statuses.append(res.status)
+
+    return HorizonAllocationPlan(
+        forecast=forecast.copy(),
+        allocations=allocations,
+        objective_values=objective_values,
+        statuses=statuses,
+    )
+
 
