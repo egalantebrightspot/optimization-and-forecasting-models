@@ -1,6 +1,8 @@
 import pytest
+import pandas as pd
 
 from src.optimization.linear_programming import solve_resource_allocation
+from src.optimization.resource_allocation import optimize_allocation_from_forecast
 
 
 def test_solve_resource_allocation_basic_feasible():
@@ -24,4 +26,22 @@ def test_solve_resource_allocation_basic_feasible():
     used_capacity = result.allocation.sum(axis=1)
     for used, cap in zip(used_capacity, capacities):
         assert used <= cap + 1e-6
+
+
+def test_optimize_allocation_from_forecast_mean_aggregation():
+    # Simple increasing forecast over 5 periods.
+    forecast = pd.Series([10.0, 12.0, 14.0, 16.0, 18.0])
+    capacities = [20.0, 20.0]
+
+    result = optimize_allocation_from_forecast(
+        forecast=forecast,
+        capacities=capacities,
+        unit_cost=2.0,
+        aggregation="mean",
+    )
+
+    assert result.status == "Optimal"
+    # Mean forecast is 14.0 units; total allocation should be close to that.
+    total_alloc = result.allocation.sum()
+    assert total_alloc == pytest.approx(14.0, rel=1e-6)
 

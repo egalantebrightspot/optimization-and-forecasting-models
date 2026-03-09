@@ -2,7 +2,11 @@ import numpy as np
 import pandas as pd
 
 from src.data.synthetic_generators import generate_demand_series
-from src.forecasting.time_series_models import forecast_horizon, train_arima
+from src.forecasting.time_series_models import (
+    evaluate_forecast,
+    forecast_horizon,
+    train_arima,
+)
 
 
 def _make_series(n: int, seed: int = 42) -> pd.Series:
@@ -30,4 +34,18 @@ def test_forecast_horizon_returns_series_with_correct_length():
     assert isinstance(fc, pd.Series)
     assert len(fc) == steps
     assert np.all(np.isfinite(fc.values))
+
+
+def test_evaluate_forecast_metrics():
+    index = pd.RangeIndex(start=0, stop=3)
+    actual = pd.Series([10.0, 20.0, 30.0], index=index)
+    predicted = pd.Series([12.0, 18.0, 33.0], index=index)
+
+    metrics = evaluate_forecast(actual, predicted)
+
+    assert set(metrics.index) == {"mae", "rmse", "mape"}
+    assert metrics["mae"] > 0.0
+    assert metrics["rmse"] >= metrics["mae"]
+    assert metrics["mape"] > 0.0
+
 

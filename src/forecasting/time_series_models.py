@@ -4,8 +4,9 @@ Baseline time series models and interfaces (starting with ARIMA).
 
 from __future__ import annotations
 
-from typing import Any, Tuple
+from typing import Any, Tuple, Dict
 
+import numpy as np
 import pandas as pd
 from statsmodels.tsa.arima.model import ARIMA, ARIMAResultsWrapper
 
@@ -57,4 +58,36 @@ def forecast_horizon(
     if not isinstance(mean_forecast, pd.Series):
         mean_forecast = pd.Series(mean_forecast)
     return mean_forecast
+
+
+def evaluate_forecast(actual: pd.Series, predicted: pd.Series) -> pd.Series:
+    """Compute simple accuracy metrics between actual and predicted series.
+
+    Both series are aligned on their index; any non-overlapping points or
+    NaNs are dropped before metric computation.
+
+    Returns a ``pandas.Series`` with metrics such as MAE, RMSE, and MAPE.
+    """
+    if not isinstance(actual, pd.Series) or not isinstance(predicted, pd.Series):
+        raise TypeError("actual and predicted must both be pandas.Series.")
+
+    df = pd.concat({"actual": actual, "predicted": predicted}, axis=1).dropna()
+    if df.empty:
+        raise ValueError("No overlapping, non-NaN data points to evaluate.")
+
+    y = df["actual"].to_numpy(dtype=float)
+    y_hat = df["predicted"].to_numpy(dtype=float)
+
+    errors = y_hat - y
+    mae = float(np.mean(np.abs(errors)))
+    rmse = float(np.sqrt(np.mean(errors**2)))
+
+    # Avoid division by zero in MAPE by flooring the denominator.
+    denom = np.maximum(np.abs(y), 1e-8)
+    mape = float(np.mean(np.abs(errors) / denom) * 100.0)
+
+    return pd.Series(
+        {"mae": mae, "rmse": rmse, "mape": mape},
+        name="forecast_metrics",
+    )
 
