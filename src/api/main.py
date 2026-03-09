@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field
 from src.forecasting.time_series_models import forecast_horizon, train_arima
 from src.optimization.linear_programming import solve_resource_allocation
 from src.optimization.resource_allocation import optimize_horizon_from_forecast
+from src.api import explain
 
 
 app = FastAPI(
@@ -17,6 +18,9 @@ app = FastAPI(
     version="0.1.0",
     description="Forecast demand and optimize resource allocation via a simple REST API.",
 )
+
+# Mount sub-routers
+app.include_router(explain.router)
 
 
 # ------------------------
